@@ -66,14 +66,13 @@ public class OFSerializedObjectInspector extends Editor {
 
 		EditorGUILayout.TextField ( "Path", obj.prefabPath );
 
-		var item : OSItem = obj.GetComponent.< OSItem > ();
-
-		if ( !inScene && !item ) {
+		if ( !inScene ) {
 			GUI.backgroundColor = Color.green;
 			if ( GUILayout.Button ( "Update", GUILayout.Width ( 60 ) ) ) {
 				var path : String = AssetDatabase.GetAssetPath ( obj.gameObject );
-				if ( path.Contains ( "Assets/Resources/" ) ) {
-					path = path.Replace ( "Assets/Resources/", "" );
+				if ( path.Contains ( "/Resources/" ) ) {
+					var strings : String [] = path.Split ( [ "/Resources/" ], System.StringSplitOptions.None );
+					path = strings [ strings.Length - 1 ];
 					path = path.Replace ( ".prefab", "" );
 
 					obj.prefabPath = path;
@@ -86,10 +85,6 @@ public class OFSerializedObjectInspector extends Editor {
 				}
 			}
 			GUI.backgroundColor = Color.white;
-		
-		} else if ( item ) {
-			obj.prefabPath = item.prefabPath;
-
 		}	
 
 		EditorGUILayout.EndHorizontal ();

@@ -44,31 +44,6 @@ public class OECamera extends MonoBehaviour {
 		GL.End ();
 	}
 
-	private function DrawPaths () {
-		GL.Begin ( GL.LINES );
-		
-		materials.highlight.SetPass ( 0 );
-		
-		for ( var i : int = 0; i < OEWorkspace.GetInstance().selection.Count; i++ ) {
-			var go : GameObject = OEWorkspace.GetInstance().selection[i].gameObject;
-			var character : OACharacter = go.GetComponent.< OACharacter > ();
-
-			if ( character && character.pathGoals.Length > 0 ) {
-				for ( var l : int = 0; l < character.pathGoals.Length; l++ ) {
-					if ( l == 0 ) {
-						GL.Vertex ( character.transform.position );
-					} else {
-						GL.Vertex ( character.pathGoals[l-1] );
-					}
-
-					GL.Vertex ( character.pathGoals[l] );
-				}
-			}
-		}
-
-		GL.End ();
-	}
-
 	private function DrawSelection () {
 		GL.Begin ( GL.QUADS );
 
@@ -224,7 +199,6 @@ public class OECamera extends MonoBehaviour {
 
 		if ( materials.selection && OEWorkspace.GetInstance().selection.Count > 0 ) {
 			DrawSelection ();
-			DrawPaths ();
 		}
 
 		if ( showGizmos ) {

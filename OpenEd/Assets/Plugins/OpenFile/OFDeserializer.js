@@ -12,9 +12,10 @@ public class OFDeserializer {
 			this.i = i;
 		}
 	}
+	
+	public static var planner : OFPlanner;
 
 	private static var connectQueue : List.< QueueItem > = new List.< QueueItem > ();
-	private static var spawnedObjects : List.< OFSerializedObject > = new List.< OFSerializedObject > ();
 	private static var plugins : OFPlugin[];
 	
 	public static function DeferConnection ( f : Function, id : String, i : int ) {
@@ -27,9 +28,9 @@ public class OFDeserializer {
 
 	public static function FindObject ( id : String ) : OFSerializedObject {
 		if ( !String.IsNullOrEmpty ( id ) ) {
-			for ( var i : int = 0; i < spawnedObjects.Count; i++ ) {
-				if ( spawnedObjects[i].id == id ) {
-					return spawnedObjects[i];
+			for ( var i : int = 0; i < planner.spawnedObjects.Count; i++ ) {
+				if ( planner.spawnedObjects[i].id == id ) {
+					return planner.spawnedObjects[i];
 				}
 			}
 		}
@@ -37,19 +38,6 @@ public class OFDeserializer {
 		return null;
 	}
 	
-	private static function ConnectAll () {
-		for ( var i : int = 0; i < connectQueue.Count; i++ ) {
-			if ( connectQueue[i].i >= 0 ) {
-				connectQueue[i].f ( FindObject ( connectQueue[i].id ), connectQueue[i].i );
-			} else {
-				connectQueue[i].f ( FindObject ( connectQueue[i].id ) );
-			}
-		}
-
-		connectQueue.Clear ();
-		spawnedObjects.Clear ();
-	}
-
 	public static function ParseEnum ( e : System.Type, s : String ) : int {
 		var strings : String[] = System.Enum.GetNames ( e );
 		
@@ -98,6 +86,8 @@ public class OFDeserializer {
 	}
 	
 	public static function DeserializeChildren ( input : JSONObject, parent : Transform ) {
+		planner = new GameObject ( "OFPlanner" ).AddComponent.< OFPlanner > ();
+		
 		for ( var i : int = 0; i < input.list.Count; i++ ) {
 			var p : JSONObject = input.list[i];
 			if ( p.HasField ( "dontInstantiate" ) ) { continue; }
@@ -125,8 +115,6 @@ public class OFDeserializer {
 			}
 			
 		}
-
-		ConnectAll ();
 	}
 	
 	// This creates a new GameObject
@@ -187,7 +175,7 @@ public class OFDeserializer {
 
 		}
 
-		spawnedObjects.Add ( output );
+		planner.spawnedObjects.Add ( output );
 
 		return output;
 	}

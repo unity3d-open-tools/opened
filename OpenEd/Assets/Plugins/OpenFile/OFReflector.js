@@ -1,5 +1,7 @@
 ﻿#pragma strict
 
+import System;
+
 public class OFReflector {
 	public static function GetPlugins () : OFPlugin [] {
 		var types : List.< OFPlugin > = new List.< OFPlugin > ();

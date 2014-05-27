@@ -1,9 +1,9 @@
 ﻿#pragma strict
 
 public class OEField {
-	@NonSerialized public var enabled : boolean = true;
-	@NonSerialized public var setCounter : int = 0;
-	@NonSerialized public var scale : Vector2 = new Vector2 ( 140, 16 );
+	@HideInInspector public var enabled : boolean = true;
+	@HideInInspector public var setCounter : int = 0;
+	@HideInInspector public var scale : Vector2 = new Vector2 ( 140, 16 );
 
 	public function get canSet () : boolean {
 		if ( setCounter > 0 ) {
@@ -971,8 +971,8 @@ public class OETextField extends OEField {
 public class OEComponentInspector {
 	public var width : float = 280;
 	public var transform : Transform;
-	@NonSerialized public var target : OFSerializedObject;
-	@NonSerialized public var offset : Vector2;
+	@HideInInspector public var target : OFSerializedObject;
+	@HideInInspector public var offset : Vector2;
 
 	private var fields : OEField[] = new OEField[900];
 	private var fieldCounter : int = 0;
