@@ -1,42 +1,9 @@
 #pragma strict
 
 public class OFDeserializer {
-	private class QueueItem {
-		public var id : String;
-		public var f : Function;
-		public var i : int = -1;
-		
-		function QueueItem ( f : Function, id : String, i : int ) {
-			this.f = f;
-			this.id = id;
-			this.i = i;
-		}
-	}
-	
 	public static var planner : OFPlanner;
-
-	private static var connectQueue : List.< QueueItem > = new List.< QueueItem > ();
-	private static var plugins : OFPlugin[];
 	
-	public static function DeferConnection ( f : Function, id : String, i : int ) {
-		connectQueue.Add ( new QueueItem ( f, id, i ) );
-	}
-
-	public static function DeferConnection ( f : Function, id : String ) {
-		connectQueue.Add ( new QueueItem ( f, id, -1 ) );
-	}
-
-	public static function FindObject ( id : String ) : OFSerializedObject {
-		if ( !String.IsNullOrEmpty ( id ) ) {
-			for ( var i : int = 0; i < planner.spawnedObjects.Count; i++ ) {
-				if ( planner.spawnedObjects[i].id == id ) {
-					return planner.spawnedObjects[i];
-				}
-			}
-		}
-
-		return null;
-	}
+	private static var plugins : OFPlugin[];
 	
 	public static function ParseEnum ( e : System.Type, s : String ) : int {
 		var strings : String[] = System.Enum.GetNames ( e );
@@ -111,10 +78,13 @@ public class OFDeserializer {
 				
 				if ( so ) {
 					so.transform.parent = t;
+					planner.AddObject ( so );
 				}
 			}
 			
 		}
+
+		planner.ConnectAll ();
 	}
 	
 	// This creates a new GameObject
@@ -174,8 +144,6 @@ public class OFDeserializer {
 			}
 
 		}
-
-		planner.spawnedObjects.Add ( output );
 
 		return output;
 	}
