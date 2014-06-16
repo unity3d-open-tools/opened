@@ -29,7 +29,7 @@ Custom inspectors
 ![](https://raw.githubusercontent.com/mrzapp/opened/master/Images/inspectors.jpg)
 
 Asset linking via either compiled resource or custom zip-based asset bundle
-![](https://raw.githubusercontent.com/mrzapp/opened/master/Images/inspectors.jpg)
+![](https://raw.githubusercontent.com/mrzapp/opened/master/Images/audiosource.jpg)
 
 ### License
 <a rel="license" href="http://creativecommons.org/licenses/by/4.0/"><img alt="Creative Commons License" style="border-width:0" src="http://i.creativecommons.org/l/by/4.0/88x31.png" /></a><br /><span xmlns:dct="http://purl.org/dc/terms/" property="dct:title">
