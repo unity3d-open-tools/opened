@@ -1,9 +1,9 @@
 ﻿#pragma strict
 
 public class OEField {
-	@HideInInspector public var enabled : boolean = true;
-	@HideInInspector public var setCounter : int = 0;
-	@HideInInspector public var scale : Vector2 = new Vector2 ( 140, 16 );
+	@NonSerialized public var enabled : boolean = true;
+	@NonSerialized public var setCounter : int = 0;
+	@NonSerialized public var scale : Vector2 = new Vector2 ( 140, 16 );
 
 	public function get canSet () : boolean {
 		if ( setCounter > 0 ) {
@@ -24,9 +24,18 @@ public class OEField {
 	public static function New ( type : System.Type, transform : Transform ) : OEField {
 		if ( type == typeof ( OEToggle ) ) {
 			return new OEToggle ( transform );
-		
+			
+		} else if ( type == typeof ( OEAssetLinkField ) ) {
+			return new OEAssetLinkField ( transform );
+
 		} else if ( type == typeof ( OEFloatField ) ) {
 			return new OEFloatField ( transform );
+		
+		} else if ( type == typeof ( OELabelField ) ) {
+			return new OELabelField ( transform );
+		
+		} else if ( type == typeof ( OETexture ) ) {
+			return new OETexture ( transform );
 		
 		} else if ( type == typeof ( OEBox ) ) {
 			return new OEBox ( transform );
@@ -389,19 +398,141 @@ public class OEPointField extends OEField {
 	}
 }
 
+public class OEAssetLinkField extends OEField {
+	public var title : OGLabel;
+	public var popup : OGPopUp;
+
+	private var target : OFSerializedObject;
+	private var object : Object;
+
+	function OEAssetLinkField ( parent : Transform ) {
+		title = new GameObject ( "lbl_AssetLink" ).AddComponent.< OGLabel > ();
+		popup = new GameObject ( "btn_AssetLink" ).AddComponent.< OGPopUp > ();
+
+		title.transform.parent = parent;
+		popup.transform.parent = parent;
+		
+		title.ApplyDefaultStyles ();
+		popup.ApplyDefaultStyles ();
+	}
+
+	override function Destroy () {
+		MonoBehaviour.Destroy ( title.gameObject );
+		MonoBehaviour.Destroy ( popup.gameObject );
+	}
+	
+	override function Update ( text : String, pos : Vector2, scale : Vector2 ) {
+		title.text = text;
+
+		title.tint.a = enabled ? 1.0 : 0.5;
+		popup.tint.a = enabled ? 1.0 : 0.5;
+		popup.isDisabled = !enabled;
+
+		if ( !String.IsNullOrEmpty ( text ) ) {
+			title.transform.localPosition = new Vector3 ( pos.x, pos.y, 0 );
+			title.transform.localScale = new Vector3 ( scale.x / 2, scale.y, 1 );
+			popup.transform.localPosition = new Vector3 ( pos.x + scale.x / 2, pos.y, 0 );
+			popup.transform.localScale = new Vector3 ( scale.x / 2, scale.y, 1 );
+		
+		} else {
+			popup.transform.localPosition = new Vector3 ( pos.x, pos.y, 0 );
+			popup.transform.localScale = new Vector3 ( scale.x, scale.y, 1 );
+		}
+	}
+
+	public function Set ( linkName : String, target : OFSerializedObject, type : System.Type ) : Object {
+		return Set ( linkName, target, type, "" );
+	}
+
+	public function Set ( linkName : String, target : OFSerializedObject, sysType : System.Type, strType : String ) : Object {
+		this.target = target;
+	
+		var assetLink : OFAssetLink = this.target.GetAssetLink ( linkName );
+
+		if ( assetLink ) {
+			if ( sysType == typeof ( Texture2D ) ) {
+				object = assetLink.GetTexture ();
+			
+			} else if ( sysType == typeof ( AudioClip ) ) {
+				object = assetLink.GetAudioClip ();
+
+			}
+		
+		} else {
+			object = null;
+
+		}
+
+		var uObject : UnityEngine.Object = object as UnityEngine.Object;
+		var objectName : String = "None";
+
+		if ( uObject != null ) {
+			if ( uObject.name.Length > 15 ) {
+				objectName = uObject.name.Substring ( 0, 15 ) + "..."; 
+			
+			} else {
+				objectName = uObject.name;
+			
+			}
+		}
+		
+		popup.title = objectName;
+		popup.options = [ "Load resource...", "Load file...", "(None)" ];
+
+		if ( popup.selectedOption == "Load resource..." ) {
+			popup.selectedOption = "";
+			OEWorkspace.GetInstance().PickResource ( function ( path : String ) {
+				this.target.SetAssetLink ( linkName, path, path.Contains ( ">" ) ? OFAssetLink.Type.Bundle : OFAssetLink.Type.Resource );
+			}, sysType, true );
+		
+		} else if ( popup.selectedOption == "Load file..." ) {
+			popup.selectedOption = "";
+			OEWorkspace.GetInstance().PickFile ( function ( path : String ) {
+				this.target.SetAssetLink ( linkName, path, OFAssetLink.Type.File );
+			}, strType );
+
+		} else if ( popup.selectedOption == "(None)" ) {
+			popup.selectedOption = "";
+			object == null;
+
+			if ( assetLink ) {
+				assetLink.Reset ();
+			}
+				
+		}
+		
+		return Out ();
+	}
+
+	public function Out () : Object {
+		return object;
+	}
+}
+
 public class OEObjectField extends OEField {
 	public enum Target {
-		Asset,
 		Prefab,
 		Scene
 	}
 	
+	public class Tuple {
+		public var object : Object;
+		public var path : String;
+	
+		function Tuple ( path : String, object : Object ) {
+			this.path = path;
+			this.object = object;
+		}
+	}
+
 	public var title : OGLabel;
 	public var button : OGButton;
 	public var clear : OGButton; 
 
 	private var obj : Object;
 	private var forcedName : String;
+	private var path : String;
+	private var usePath : boolean = false;
 
 	function OEObjectField ( parent : Transform ) {
 		title = new GameObject ( "lbl_Object" ).AddComponent.< OGLabel > ();
@@ -453,8 +584,8 @@ public class OEObjectField extends OEField {
 
 	public function Clear () {
 		obj = null;
-		canSet = true;
-		forcedName = "";
+		setCounter = 10;
+		path = "";
 	}
 
 	public function Set ( setObj : Object, sysType : System.Type, strType : String ) : Object {
@@ -463,14 +594,29 @@ public class OEObjectField extends OEField {
 
 	public function Set ( setObj : Object, sysType : System.Type, strType : String, attachTo : OFSerializedObject ) : Object {
 		if ( canSet ) {
-			obj = setObj;
+			if ( setObj.GetType() == typeof ( String ) ) {
+				path = setObj as String;
+				usePath = true;
+			
+				if ( obj == null && !String.IsNullOrEmpty ( path ) ) {
+					var json : JSONObject = OFReader.LoadFile ( path );
+					var so : OFSerializedObject = OFDeserializer.Deserialize ( json, attachTo );
+					obj = so.GetComponent ( sysType );
+				}
+
+			} else {
+				obj = setObj;
+
+			}
 		}
 		
 		button.func = function () {
 			canSet = false;
 			
 			OEWorkspace.GetInstance().PickFile ( function ( file : System.IO.FileInfo ) {
-				var json : JSONObject = OFReader.LoadFile ( file.FullName );
+				path = file.FullName;
+				
+				var json : JSONObject = OFReader.LoadFile ( path );
 				var so : OFSerializedObject = OFDeserializer.Deserialize ( json, attachTo );
 				obj = so.GetComponent ( sysType );
 				forcedName = file.Name;
@@ -503,13 +649,7 @@ public class OEObjectField extends OEField {
 					OEWorkspace.GetInstance().PickPrefab ( function ( picked : Object ) {
 						obj = picked;
 						canSet = true;
-					}, sysType );
-					break;
-				
-				case Target.Asset:
-					OEWorkspace.GetInstance().PickAsset ( function ( picked : Object ) {
-						obj = picked;
-						canSet = true;
+						OEWorkspace.GetInstance().toolbar.Clear ();
 					}, sysType );
 					break;
 			}
@@ -525,7 +665,7 @@ public class OEObjectField extends OEField {
 		var o : UnityEngine.Object;
 		var name : String;
 
-		if ( String.IsNullOrEmpty ( forcedName ) ) {
+		if ( !usePath ) {
 			if ( obj ) {
 				var c : Component = obj as Component;
 				o = obj as UnityEngine.Object;
@@ -550,8 +690,20 @@ public class OEObjectField extends OEField {
 			}
 		
 		} else {
-			name = forcedName;
-		
+			if ( String.IsNullOrEmpty ( path ) ) {
+				name = "None";
+
+			} else {
+				var split : String [];
+				 
+				if ( path.Contains ( "\\" ) ) {
+					split = path.Split ( "\\"[0] );
+				} else {	
+					split = path.Split ( "/"[0] );
+				}
+
+				name = split [ split.Length - 1 ];
+			}
 		}
 		
 		if ( name.Length > 15 ) {
@@ -560,7 +712,32 @@ public class OEObjectField extends OEField {
 		
 		button.text = name;
 
-		return obj;
+		if ( usePath ) {
+			return new Tuple ( path, obj );
+		} else {
+			return obj;
+		}
+	}
+}
+
+public class OETexture extends OEField {
+	public var texture : OGTexture;
+	
+	function OETexture ( parent : Transform ) {
+		texture = new GameObject ( "tex_Texture" ).AddComponent.< OGTexture > ();
+		
+		texture.transform.parent = parent;
+	}
+
+	override function Destroy () {
+		MonoBehaviour.Destroy ( texture.gameObject );
+	}
+
+	override function Update ( text : String, pos : Vector2, scale : Vector2 ) {
+		texture.tint.a = enabled ? 1.0 : 0.5;
+		
+		texture.transform.localPosition = new Vector3 ( pos.x, pos.y, 0 );
+		texture.transform.localScale = new Vector3 ( scale.x, scale.y, 1 );
 	}
 }
 
@@ -606,7 +783,7 @@ public class OEBox extends OEField {
 	override function Update ( text : String, pos : Vector2, scale : Vector2 ) {
 		sprite.tint.a = enabled ? 1.0 : 0.5;
 		
-		sprite.transform.localPosition = new Vector3 ( pos.x, pos.y, 0 );
+		sprite.transform.localPosition = new Vector3 ( pos.x, pos.y, 2 );
 		sprite.transform.localScale = new Vector3 ( scale.x, scale.y, 1 );
 	}
 }
@@ -649,11 +826,11 @@ public class OEPopup extends OEField {
 		if ( !String.IsNullOrEmpty ( text ) ) {
 			title.transform.localPosition = new Vector3 ( pos.x, pos.y, 0 );
 			title.transform.localScale = new Vector3 ( scale.x / 2, scale.y, 1 );
-			popup.transform.localPosition = new Vector3 ( pos.x + scale.x / 2, pos.y, popup.isUp ? -1 : 0 );
+			popup.transform.localPosition = new Vector3 ( pos.x + scale.x / 2, pos.y, popup.isUp ? -5 : 0 );
 			popup.transform.localScale = new Vector3 ( scale.x / 2, scale.y, 1 );
 		
 		} else {
-			popup.transform.localPosition = new Vector3 ( pos.x, pos.y, popup.isUp ? -1 : 0 );
+			popup.transform.localPosition = new Vector3 ( pos.x, pos.y, popup.isUp ? -5 : 0 );
 			popup.transform.localScale = new Vector3 ( scale.x, scale.y, 1 );
 		
 		}
@@ -962,8 +1139,10 @@ public class OETextField extends OEField {
 	}
 
 	public function Out () : String {
-		textfield.text = textfield.text.Replace ( "\n", "" );
-		
+		if ( !String.IsNullOrEmpty ( textfield.text ) ) {
+			textfield.text = textfield.text.Replace ( "\n", "" );
+		}
+
 		return textfield.text;
 	}	
 }
@@ -971,8 +1150,9 @@ public class OETextField extends OEField {
 public class OEComponentInspector {
 	public var width : float = 280;
 	public var transform : Transform;
-	@HideInInspector public var target : OFSerializedObject;
-	@HideInInspector public var offset : Vector2;
+	@NonSerialized public var target : OFSerializedObject;
+	@NonSerialized public var offset : Vector2;
+	public var overrideTarget : boolean = false;
 
 	private var fields : OEField[] = new OEField[900];
 	private var fieldCounter : int = 0;
@@ -990,6 +1170,7 @@ public class OEComponentInspector {
 	}
 
 	public function Inspector () {}
+	public function DrawGL () {}
 
 	// Clean up
 	public function CleanUp () {
@@ -1037,6 +1218,39 @@ public class OEComponentInspector {
 		offset.x += x;
 		offset.y += y;
 	}
+
+	// OETexture
+	public function Texture ( tex : Texture2D, rect : Rect ) {
+		var texture : OETexture = CheckField ( typeof ( OETexture ) ) as OETexture;
+		texture.texture.mainTexture = tex;
+		texture.Update ( "", new Vector2 ( rect.x, rect.y ), new Vector2 ( rect.width, rect.height ) );
+		texture.enabled = !disabled;
+		fieldCounter++;
+	}
+
+	// OEAssetLinkField
+	public function AssetLinkField ( text : String, linkName : String, target : OFSerializedObject, sysType : System.Type ) : Object {
+		offset.y += 20;
+		return AssetLinkField ( text, linkName, target, sysType, new Rect ( offset.x, offset.y, width - offset.x, 16 ) );
+	}
+	
+	public function AssetLinkField ( text : String, linkName : String, target : OFSerializedObject, sysType : System.Type, strType : String ) : Object {
+		offset.y += 20;
+		return AssetLinkField ( text, linkName, target, sysType, strType, new Rect ( offset.x, offset.y, width - offset.x, 16 ) );
+	}
+	
+	public function AssetLinkField ( text : String, linkName : String, target : OFSerializedObject, sysType : System.Type, rect : Rect ) : Object {
+		return AssetLinkField ( text, linkName, target, sysType, "" );
+	}
+	
+	public function AssetLinkField ( text : String, linkName : String, target : OFSerializedObject, sysType : System.Type, strType : String, rect : Rect ) : Object {
+		var assetLinkField : OEAssetLinkField = CheckField ( typeof ( OEAssetLinkField ) ) as OEAssetLinkField;
+		assetLinkField.Update ( text, new Vector2 ( rect.x, rect.y ), new Vector2 ( rect.width, rect.height ) );
+		assetLinkField.enabled = !disabled;
+		fieldCounter++;
+		return assetLinkField.Set ( linkName, target, sysType, strType );
+	}
+	
 
 	// OEObjectField
 	public function ObjectField ( text : String, input : Object, sysType : System.Type, strType : String ) : Object {
@@ -1114,6 +1328,19 @@ public class OEComponentInspector {
 		slider.enabled = !disabled;
 		fieldCounter++;
 		return slider.Set ( input, min, max );
+	}
+	
+	// OELabelField
+	public function LabelField ( text : String ) {
+		offset.y += 20;
+		LabelField ( text, new Rect ( offset.x, offset.y, width - offset.x, 16 ) );
+	}
+
+	public function LabelField ( text : String, rect : Rect ) {
+		var labelField : OELabelField = CheckField ( typeof ( OELabelField ) ) as OELabelField;
+		labelField.Update ( text, new Vector2 ( rect.x, rect.y ), new Vector2 ( rect.width, rect.height ) );
+		labelField.enabled = !disabled;
+		fieldCounter++;
 	}
 
 	// OETextField
@@ -1230,7 +1457,7 @@ public class OEComponentInspector {
 		fieldCounter = 0;
 		offset = new Vector2 ( 0, -20 );
 
-       		if ( target ) {
+       		if ( target || overrideTarget ) {
 			Inspector ();
 		}
 

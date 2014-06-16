@@ -1,7 +1,7 @@
 fileFormatVersion: 2
 guid: 2087f368afe8c4906bf80110b5cecf4c
 ModelImporter:
-  serializedVersion: 15
+  serializedVersion: 16
   fileIDToRecycleName:
     100000: //RootNode
     100002: gizmo_move
@@ -75,4 +75,5 @@ ModelImporter:
     rootMotionBoneName: 
   lastHumanDescriptionAvatarSource: {instanceID: 0}
   animationType: 0
+  additionalBone: 0
   userData: 

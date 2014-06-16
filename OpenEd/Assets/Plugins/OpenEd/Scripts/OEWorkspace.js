@@ -58,12 +58,13 @@ public class OEWorkspace extends MonoBehaviour {
 	
 	public var cam : OECamera;
 	public var fileBrowser : OEFileBrowser;
-	public var assetBrowser : OEAssetBrowser;
+	public var resourceBrowser : OEResourceBrowser;
 	public var properties : OEProperties;
 	public var inspector : OEInspector;
 	public var picker : OEPicker;
 	public var previewCamera : OEPreviewCamera;
 	public var toolbar : OEToolbar;
+	//public var navmesh : OPNavMesh;
 	public var currentMap : String = "";
 	public var currentSavePath : String;
 	public var eventHandler : GameObject;
@@ -72,6 +73,7 @@ public class OEWorkspace extends MonoBehaviour {
 	public var metaParent : Transform;
 	public var skydomeParent : Transform;
 	public var miscParent : Transform;
+	public var navmeshParent : Transform;
 	public var transformMode : OETransformMode;
 	public var gizmoPosition : OEGizmo;
 	public var gizmoRotation : OEGizmo;
@@ -82,6 +84,8 @@ public class OEWorkspace extends MonoBehaviour {
 
 	private var undoBuffer : List.< OEUndoAction > = new List.< OEUndoAction > ();
 	private var lastUndo : int = -1;
+	private var initCamPos : Vector3;
+	private var initCamRot : Quaternion;
 
 	public static var instance : OEWorkspace;
 
@@ -133,12 +137,22 @@ public class OEWorkspace extends MonoBehaviour {
 				l.gameObject.AddComponent.< SphereCollider > ();
 			}
 		}
+		
+		for ( var a : AudioSource in this.GetComponentsInChildren.< AudioSource > () ) {
+			if ( a.isPlaying ) {
+				a.Stop ();
+			}
+			
+			if ( !a.gameObject.GetComponent.< SphereCollider > () ) {
+				a.gameObject.AddComponent.< SphereCollider > ();
+			}
+		}
 
 		for ( var rb : Rigidbody in this.GetComponentsInChildren.< Rigidbody > () ) {
 			rb.isKinematic = true;
 			rb.useGravity = false;
 		}
-	
+		
 		for ( var cc : CharacterController in this.GetComponentsInChildren.< CharacterController > () ) {
 			var capsule : CapsuleCollider = cc.gameObject.AddComponent.< CapsuleCollider > ();
 
@@ -149,9 +163,10 @@ public class OEWorkspace extends MonoBehaviour {
 			cc.enabled = false;
 		}
 		
-		for ( var a : Animator in this.GetComponentsInChildren.< Animator > () ) {
-			a.enabled = false;
-		}
+		// FIXME: This causes strange decapitation bugs
+		//for ( var a : Animator in this.GetComponentsInChildren.< Animator > () ) {
+		//	a.enabled = false;
+		//}
 	}
 
 	// Refresh data
@@ -160,6 +175,7 @@ public class OEWorkspace extends MonoBehaviour {
 		cam.audioSources = this.GetComponentsInChildren.< AudioSource >();
 		inspector.Refresh ( selection );
 		toolbar.Refresh ();
+		//navmesh = this.GetComponentInChildren.< OPNavMesh > ();
 	}
 
 	// Exit
@@ -171,6 +187,8 @@ public class OEWorkspace extends MonoBehaviour {
 
 	// File I/O
 	private function LoadMap ( json : JSONObject ) : IEnumerator {
+		yield WaitForEndOfFrame ();
+		
 		OGRoot.GetInstance().GoToPage ( "Loading" );
 		
 		yield WaitForEndOfFrame ();
@@ -211,14 +229,24 @@ public class OEWorkspace extends MonoBehaviour {
 		OGRoot.GetInstance().GoToPage ( "Home" );
 	}
 
+	public function NewFile () {
+		ClearScene ();
+
+		cam.transform.position = initCamPos;
+		cam.transform.rotation = initCamRot;
+		focusPoint = Vector3.zero;
+
+		currentSavePath = "";
+	}
+
 	public function OpenFile () {
 		fileBrowser.browseMode = OEFileBrowser.BrowseMode.Open;
 		fileBrowser.filter = ".map";
 		fileBrowser.callback = function ( file : FileInfo ) {
-			var json : JSONObject = OFReader.LoadFile ( file.FullName );
-			
 			currentSavePath = file.FullName;
-
+			PlayerPrefs.SetString ( "OEWorkspace.currentSavePath", currentSavePath );
+			PlayerPrefs.Save ();
+			var json : JSONObject = OFReader.LoadFile ( currentSavePath );
 			StartCoroutine ( LoadMap ( json ) );
 		};
 		fileBrowser.sender = "Home";
@@ -255,12 +283,14 @@ public class OEWorkspace extends MonoBehaviour {
 
 	// Pick things
 	public function PickPoint ( callback : Function ) {
+		picker.sender = OGRoot.GetInstance().currentPage.pageName;
 		picker.callback = callback;
 		picker.getPoint = true;	
 		OGRoot.GetInstance().GoToPage ( "Picker" );
 	}
 	
 	public function PickObject ( callback : Function, type : System.Type ) {
+		picker.sender = OGRoot.GetInstance().currentPage.pageName;
 		picker.callback = callback;
 		picker.type = type;
 		OGRoot.GetInstance().GoToPage ( "Picker" );
@@ -270,22 +300,23 @@ public class OEWorkspace extends MonoBehaviour {
 		var drawer : OEPrefabsDrawer = toolbar.OpenDrawer ( "Prefabs" ) as OEPrefabsDrawer;
 
 		if ( drawer ) {
-			drawer.SetPicker ( callback, type );
+			drawer.SetPicker ( callback, type, OGRoot.GetInstance().currentPage.pageName );
 		}
 	}
 	
-	public function PickAsset ( callback : Function, type : System.Type ) {
-		assetBrowser.callback = callback;
-		assetBrowser.filter = type;
-		assetBrowser.sender = "Home";
-		OGRoot.GetInstance().GoToPage ( "AssetBrowser" );
+	public function PickResource ( callback : Function, type : System.Type, getPath : boolean ) {
+		resourceBrowser.callback = callback;
+		resourceBrowser.filter = type;
+		resourceBrowser.sender = OGRoot.GetInstance().currentPage.pageName;
+		resourceBrowser.getPath = getPath;
+		OGRoot.GetInstance().GoToPage ( "ResourceBrowser" );
 	}
 	
 	public function PickFile ( callback : Function, filterString : String ) {
 		fileBrowser.callback = callback;
 		fileBrowser.browseMode = OEFileBrowser.BrowseMode.Open;
 		fileBrowser.filter = filterString;
-		fileBrowser.sender = "Home";
+		resourceBrowser.sender = OGRoot.GetInstance().currentPage.pageName;
 		OGRoot.GetInstance().GoToPage ( "FileBrowser" );
 	}
 
@@ -483,6 +514,24 @@ public class OEWorkspace extends MonoBehaviour {
 		cam.showGizmos = !cam.showGizmos;
 	}
 	
+	/*public function ToggleNavmesh () {
+		if ( navmesh ) {
+			if ( navmeshParent.childCount > 0 ) {
+				for ( var i : int = 0; i < navmeshParent.childCount; i++ ) {
+					Destroy ( navmeshParent.GetChild ( i ).gameObject );
+				}
+			
+			} else {
+				var go = GameObject ( "nanmesh", MeshRenderer, MeshFilter );
+				go.renderer.material = cam.materials.navmesh;
+				go.transform.parent = navmeshParent;
+				go.transform.position = Vector3.zero;
+				go.GetComponent.< MeshFilter > ().mesh = navmesh.GetComponent.< MeshFilter > ().mesh;
+				
+			}
+		}
+	}*/
+
 	// Instatiate
 	public function AddPrefab ( path : String ) : OFSerializedObject {
 		var go : GameObject = Instantiate ( Resources.Load ( path ) ) as GameObject;
@@ -555,6 +604,16 @@ public class OEWorkspace extends MonoBehaviour {
 	// Init
 	public function Start () {
 		instance = this;
+	
+		initCamPos = cam.transform.position;
+		initCamRot = cam.transform.rotation;
+
+		currentSavePath = PlayerPrefs.GetString ( "OEWorkspace.currentSavePath" );
+
+		if ( !String.IsNullOrEmpty ( currentSavePath ) ) {
+			var json : JSONObject = OFReader.LoadFile ( currentSavePath );
+			StartCoroutine ( LoadMap ( json ) );
+		}
 	}
 
 	// Update

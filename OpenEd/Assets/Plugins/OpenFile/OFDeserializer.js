@@ -113,11 +113,43 @@ public class OFDeserializer {
 			plugins = OFReflector.GetPlugins ();
 		}
 		
-		var components : JSONObject = input.GetField ( "components" );
-		output.gameObject.name = input.GetField ( "name" ).str;
-		output.id = input.GetField ( "id" ).str;
+		if ( !String.IsNullOrEmpty ( input.GetField ( "name" ).str ) ) {
+			output.gameObject.name = input.GetField ( "name" ).str;
+		}
 
-		for ( var i : int = 0; i < components.list.Count; i++ ) {
+		if ( String.IsNullOrEmpty ( output.id ) ) {
+			output.id = input.GetField ( "id" ).str;
+		}
+		
+		var assetLinks : JSONObject = input.GetField ( "assetLinks" );
+
+		if ( assetLinks != null ) {
+			for ( var i : int = 0; i < assetLinks.list.Count; i++ ) {
+				var asFile : boolean = false;
+				var path : String;
+				var type : OFAssetLink.Type;
+
+				if ( assetLinks.list[i].HasField ( "filePath" ) ) {
+					path = assetLinks[i].GetField ( "filePath" ).str;
+					type = OFAssetLink.Type.File;
+
+				} else if ( assetLinks.list[i].HasField ( "resourcePath" ) ) {
+					path = assetLinks[i].GetField ( "resourcePath" ).str;
+					type = OFAssetLink.Type.Resource;
+						
+				} else if ( assetLinks.list[i].HasField ( "bundlePath" ) ) {
+					path = assetLinks[i].GetField ( "bundlePath" ).str;
+					type = OFAssetLink.Type.Bundle;
+						
+				}
+
+				output.AddAssetLink ( assetLinks[i].GetField ( "name" ).str, path, type );
+			}
+		}
+
+		var components : JSONObject = input.GetField ( "components" );
+		
+		for ( i = 0; i < components.list.Count; i++ ) {
 			var c : Component;
 			var typeString : String = components.list[i].GetField ( "_TYPE_" ).str;
 
@@ -170,7 +202,12 @@ public class OFDeserializer {
 	
 	// AudioSource
 	public static function Deserialize ( input : JSONObject, audio : AudioSource ) {
-		//audio.clip = input.GetField ( "clip" ).str;
+		var assetLink : OFAssetLink = audio.GetComponent.< OFSerializedObject >().GetAssetLink( "clip" );
+
+		if ( assetLink != null ) {
+			audio.clip = assetLink.GetAudioClip ();
+		}
+
 		audio.dopplerLevel = input.GetField ( "dopplerLevel" ).n;
 		audio.ignoreListenerPause = input.GetField ( "ignoreListenerPause" ).b;
 		audio.ignoreListenerVolume = input.GetField ( "ignoreListenerVolume" ).b;
@@ -184,6 +221,10 @@ public class OFDeserializer {
 		audio.rolloffMode = Mathf.RoundToInt ( input.GetField ( "rolloffMode" ).n );
 		audio.spread = input.GetField ( "spread" ).n;
 		audio.volume = input.GetField ( "volume" ).n;
+
+		if ( audio.playOnAwake ) {
+			audio.Play ();
+		}
 	}
 
 

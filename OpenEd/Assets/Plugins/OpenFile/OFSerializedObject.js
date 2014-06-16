@@ -1,9 +1,113 @@
 ﻿#pragma strict
 
+public class OFAssetLink {
+	public enum Type {
+		Bundle,
+		File,
+		Resource,
+	}
+
+	public var type : Type = Type.Resource;
+	public var name : String;
+	public var resourcePath : String;
+	public var filePath : String;
+	public var bundlePath : String;
+
+	private var texture : Texture2D;
+	private var audioClip : AudioClip;
+
+	public function Reset () {
+		texture = null;
+		audioClip = null;
+		resourcePath = "";
+		filePath = "";
+		bundlePath = "";
+	}
+
+	public function GetLinkType () : Type {
+		if ( !String.IsNullOrEmpty ( filePath ) ) {
+			return Type.File;
+		
+		} else if ( !String.IsNullOrEmpty ( resourcePath ) ) {
+			return Type.Resource;
+
+		} else if ( !String.IsNullOrEmpty ( bundlePath ) ) {
+			return Type.Bundle;
+
+		} else {
+			return -1;
+
+		}
+	}
+
+	public function GetAudioClip () : AudioClip {
+		if ( audioClip == null && !String.IsNullOrEmpty ( resourcePath ) ) {
+			audioClip = Resources.Load ( resourcePath ) as AudioClip;
+		
+		} else if ( audioClip == null && !String.IsNullOrEmpty ( bundlePath ) ) {
+			var strings : String [] = bundlePath.Split ( ">"[0] );
+			var bundle : OFBundle = OFBundleManager.instance.GetBundle ( strings [0] );
+			
+			if ( bundle ) {
+				audioClip = bundle.GetAudioClip ( strings[1] );
+			}
+		}
+
+		return audioClip;
+	}
+
+	public function GetAudioClip ( callback : System.Action.< AudioClip > ) : IEnumerator {
+		if ( audioClip == null && !String.IsNullOrEmpty ( filePath ) ) {
+			var www : WWW = new WWW ( filePath );
+
+			yield www;
+
+			audioClip = www.audioClip;
+
+			callback ( audioClip );
+		
+		} else {
+			callback ( audioClip );
+
+		}
+	}
+	
+	public function GetTexture () : Texture2D {
+		if ( texture == null && !String.IsNullOrEmpty ( resourcePath ) ) {
+			texture = Resources.Load ( resourcePath ) as Texture2D;
+		
+		} else if ( texture == null && !String.IsNullOrEmpty ( bundlePath ) ) {
+			var strings : String [] = bundlePath.Split ( ">"[0] );
+			var bundle : OFBundle = OFBundleManager.instance.GetBundle ( strings [0] );
+			
+			if ( bundle ) {
+				texture = bundle.GetTexture ( strings[1] );
+			}
+		}
+
+		return texture;
+	}
+
+	public function GetTexture ( callback : System.Action.< Texture2D > ) : IEnumerator {
+		if ( texture == null && !String.IsNullOrEmpty ( filePath ) ) {
+			var www : WWW = new WWW ( filePath );
+
+			yield www;
+
+			texture = www.texture;
+
+			callback ( texture );
+		
+		} else {
+			callback ( texture );
+
+		}
+	}
+}
+
 public class OFField {
 	public var typeIndex : int;
 	public var name : String = "";
-
 	public var component : Component;
 
 	private static var plugins : OFPlugin [];
@@ -102,7 +206,8 @@ public class OFField {
 }
 
 public class OFSerializedObject extends MonoBehaviour {
-	public var fields : OFField [] = new OFField[0];	
+	public var fields : OFField [] = new OFField[0];
+	public var assetLinks : OFAssetLink [] = new OFAssetLink[0];
 	public var id : String = "";
 	public var prefabPath : String = "";
 	public var exportPath : String = "";
@@ -116,6 +221,84 @@ public class OFSerializedObject extends MonoBehaviour {
 			RenewId ();
 		}
 	}
+
+	public function ClearAssetLinks () {
+		assetLinks = new OFAssetLink[0];
+	}
+
+	public function AddAssetLink ( name : String, path : String, type : OFAssetLink.Type ) {
+		var tmp : List.< OFAssetLink > = new List.< OFAssetLink > ( assetLinks );
+
+		var link : OFAssetLink = new OFAssetLink ();
+		
+		link.name = name;
+
+		switch ( type ) {
+			case OFAssetLink.Type.File:
+				link.filePath = path;
+				break;
+		
+			case OFAssetLink.Type.Resource:
+				link.resourcePath = path;
+				break;
+		
+			case OFAssetLink.Type.Bundle:
+				link.bundlePath = path;
+				break;
+		}
+
+		tmp.Add ( link );
+
+		assetLinks = tmp.ToArray ();
+	}
+
+	public function GetAssetLink ( name : String ) : OFAssetLink {
+		for ( var i : int = 0; i < assetLinks.Length; i++ ) {
+			if ( assetLinks[i].name == name ) {
+				return assetLinks[i];
+			}
+		}
+		
+		return null;
+	}
+	
+	public function RemoveAssetLink ( name : String ) {
+		var tmp : List.< OFAssetLink > = new List.< OFAssetLink > ( assetLinks );
+		
+		for ( var i : int = tmp.Count - 1; i >= 0; i-- ) {
+			if ( tmp[i].name == name ) {
+				tmp.RemoveAt ( i );
+			}
+		}
+		
+		assetLinks = tmp.ToArray ();
+	}
+
+	public function SetAssetLink ( name : String, path : String, type : OFAssetLink.Type ) {
+		for ( var i : int = 0; i < assetLinks.Length; i++ ) {
+			if ( assetLinks[i].name == name ) {
+				assetLinks[i].Reset ();
+				
+				switch ( type ) {
+					case OFAssetLink.Type.File:
+						assetLinks[i].filePath = path;
+						break;
+				
+					case OFAssetLink.Type.Bundle:
+						assetLinks[i].bundlePath = path;
+						break;
+						
+					case OFAssetLink.Type.Resource:
+						assetLinks[i].resourcePath = path;
+						break;
+				}
+
+				return;
+			}
+		}
+
+		AddAssetLink ( name, path, type );
+	}	
 
 	public function SetField ( name : String, value : Component ) {
 		var tmpFields : List.< OFField > = new List.< OFField > ( fields );

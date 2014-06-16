@@ -22,6 +22,28 @@ public class OECamera extends MonoBehaviour {
 	public var dynamicLights : boolean = false;
 	public var nearClipSlider : OGSlider;
 	public var flyMode : boolean = false;
+	
+	@NonSerialized public var currentInspector : OEComponentInspector;
+
+	private function CombineBounds ( colliders : Collider [] ) : Bounds {
+		var bounds : Bounds;
+
+		if ( colliders.Length > 0 ) {
+			bounds = colliders[0].bounds;
+			
+			for ( var i : int = 0; i < colliders.Length; i++ ) {
+				if ( colliders[i].bounds.min.x < bounds.min.x ) { bounds.min.x = colliders[i].bounds.min.x; }
+				if ( colliders[i].bounds.min.y < bounds.min.y ) { bounds.min.y = colliders[i].bounds.min.y; }
+				if ( colliders[i].bounds.min.z < bounds.min.z ) { bounds.min.z = colliders[i].bounds.min.z; }
+				
+				if ( colliders[i].bounds.max.x > bounds.max.x ) { bounds.max.x = colliders[i].bounds.max.x; }
+				if ( colliders[i].bounds.max.y > bounds.max.y ) { bounds.max.y = colliders[i].bounds.max.y; }
+				if ( colliders[i].bounds.max.z > bounds.max.z ) { bounds.max.z = colliders[i].bounds.max.z; }
+			}
+		}
+
+		return bounds;
+	}
 
 	private function DrawGrid () {
 		var focus : Vector3 = OEWorkspace.GetInstance().GetFocus ();
@@ -51,11 +73,9 @@ public class OECamera extends MonoBehaviour {
 
 		for ( var i : int = 0; i < OEWorkspace.GetInstance().selection.Count; i++ ) {
 			var go : GameObject = OEWorkspace.GetInstance().selection[i].gameObject;
-			var renderer : Renderer = go.GetComponentInChildren.< Renderer > ();
+			var b : Bounds = CombineBounds ( go.GetComponentsInChildren.< Collider > () );
 
-			if ( renderer ) {
-				var b : Bounds = renderer.bounds;
-				
+			if ( b.size != Vector3.zero ) {
 				var bbl : Vector3 = b.min;
 				var btl : Vector3 = bbl + Vector3.up * b.size.y;
 				var btr : Vector3 = btl + Vector3.right * b.size.x;
@@ -199,6 +219,10 @@ public class OECamera extends MonoBehaviour {
 
 		if ( materials.selection && OEWorkspace.GetInstance().selection.Count > 0 ) {
 			DrawSelection ();
+			
+			if ( currentInspector && currentInspector.target ) {
+				currentInspector.DrawGL ();
+			}
 		}
 
 		if ( showGizmos ) {

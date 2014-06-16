@@ -4,8 +4,10 @@ public class OFPlanner extends MonoBehaviour {
 	public class Connection {
 		public var callback : Action.< OFSerializedObject >;
 		public var callbackWithIndex : Action.< OFSerializedObject, int >;
+		public var callbackWithIndices : Action.< OFSerializedObject, int[] >;
 		public var id : String;
 		public var index : int = -1;
+		public var indices : int [];
 
 		function Connection ( callback : Action.< OFSerializedObject >, id : String ) {
 			this.callback = callback;
@@ -16,6 +18,12 @@ public class OFPlanner extends MonoBehaviour {
 			this.callbackWithIndex = callback;
 			this.id = id;
 			this.index = index;
+		}
+		
+		function Connection ( callback : Action.< OFSerializedObject, int [] >, id : String, indices : int [] ) {
+			this.callbackWithIndices = callback;
+			this.id = id;
+			this.indices = indices;
 		}
 	}
 
@@ -32,6 +40,10 @@ public class OFPlanner extends MonoBehaviour {
 	
 	public function DeferConnection ( callback : Action.< OFSerializedObject, int >, id : String, index : int ) {
 		allConnections.Add ( new Connection ( callback, id, index ) );
+	}
+	
+	public function DeferConnection ( callback : Action.< OFSerializedObject, int [] >, id : String, indices : int [] ) {
+		allConnections.Add ( new Connection ( callback, id, indices ) );
 	}
 
 	public function FindObject ( id : String ) : OFSerializedObject {
@@ -53,6 +65,9 @@ public class OFPlanner extends MonoBehaviour {
 			if ( so ) {
 				if ( c.callbackWithIndex ) {
 					c.callbackWithIndex ( so, c.index );
+				
+				} else if ( c.callbackWithIndices ) {
+					c.callbackWithIndices ( so, c.indices );
 				
 				} else {
 					c.callback ( so );

@@ -5,6 +5,7 @@ public class OEPicker extends OGPage {
 	public var callback : Function;
 	public var type : System.Type;
 	public var getPoint : boolean = false;
+	@NonSerialized public var sender : String = "Home";
 
 	override function StartPage () {
 		if ( getPoint ) {
@@ -20,6 +21,7 @@ public class OEPicker extends OGPage {
 		type = null;
 		callback = null;
 		getPoint = false;
+		sender = "Home";
 	}
 
 	public function Update () {
@@ -32,19 +34,19 @@ public class OEPicker extends OGPage {
 
 				if ( getPoint ) {
 					callback ( hit.point );
-					OGRoot.GetInstance().GoToPage ( "Home" );
+					OGRoot.GetInstance().GoToPage ( sender );
 
 				} else {
 					if ( type == typeof ( GameObject ) || ( obj as GameObject ).GetComponent ( type ) ) {
 						callback ( obj );
-						OGRoot.GetInstance().GoToPage ( "Home" );
+						OGRoot.GetInstance().GoToPage ( sender );
 					
 					}
 				}
 			}	
 
 		} else if ( Input.GetKeyDown ( KeyCode.Escape ) ) {
-			OGRoot.GetInstance().GoToPage ( "Home" );
+			OGRoot.GetInstance().GoToPage ( sender );
 
 		}
 	}

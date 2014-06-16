@@ -37,20 +37,11 @@ public class OGDrawHelper {
 	}	
 	
 	// Draw
-	public static function DrawCurve ( start : Vector3, startDir : Vector3, end : Vector3, endDir : Vector3, segments : int ) {
-		var q0 : Vector3 = CalculateBezierPoint ( 0, start, startDir, end, endDir );
-
-		for ( var i : int = 0; i < segments; i++ ) {
-			var t : float = i / ( segments * 1.0 );
-			var q1 : Vector3 = CalculateBezierPoint ( t, start, startDir, end, endDir );
-			
-			GL.Vertex ( q0 );
-			GL.Vertex ( q1 );
-
-			q0 = q1;
-		}
+	public static function DrawLine ( start : Vector3, end : Vector3, depth : float ) {
+		GL.Vertex ( start + new Vector3 ( 0, 0, depth ) );
+		GL.Vertex ( end + new Vector3 ( 0, 0, depth ) );
 	}
-
+	
 
 	//////////////////
 	// Label

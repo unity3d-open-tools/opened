@@ -62,6 +62,7 @@ public class OFSerializer extends MonoBehaviour {
 	public static function Serialize ( input : OFSerializedObject ) : JSONObject {
 		var output : JSONObject = new JSONObject ( JSONObject.Type.OBJECT );
 		var components : JSONObject = new JSONObject ( JSONObject.Type.ARRAY );
+		var assetLinks : JSONObject = new JSONObject ( JSONObject.Type.ARRAY );
 
 		output.AddField ( "name", input.gameObject.name );
 		output.AddField ( "id", input.id );
@@ -71,7 +72,27 @@ public class OFSerializer extends MonoBehaviour {
 			components.Add ( Serialize ( input.fields[i].component ) );
 		}
 
+		for ( i = 0; i < input.assetLinks.Length; i++ ) {
+			var assetLink : JSONObject = new JSONObject ( JSONObject.Type.OBJECT );
+
+			assetLink.AddField ( "name", input.assetLinks[i].name );
+			
+			if ( !String.IsNullOrEmpty ( input.assetLinks[i].filePath ) ) {
+				assetLink.AddField ( "filePath", input.assetLinks[i].filePath );
+			
+			} else if ( !String.IsNullOrEmpty ( input.assetLinks[i].resourcePath ) ) {
+				assetLink.AddField ( "resourcePath", input.assetLinks[i].resourcePath );
+			
+			} else if ( !String.IsNullOrEmpty ( input.assetLinks[i].bundlePath ) ) {
+				assetLink.AddField ( "bundlePath", input.assetLinks[i].bundlePath );
+			
+			}
+
+			assetLinks.Add ( assetLink );
+		}
+
 		output.AddField ( "components", components );
+		output.AddField ( "assetLinks", assetLinks );
 
 		return output;
 	}
@@ -139,7 +160,6 @@ public class OFSerializer extends MonoBehaviour {
 		
 		var output : JSONObject = new JSONObject ( JSONObject.Type.OBJECT );
 
-		output.AddField ( "clip", input.clip.name );
 		output.AddField ( "dopplerLevel", input.dopplerLevel );
 		output.AddField ( "ignoreListenerPause", input.ignoreListenerPause );
 		output.AddField ( "ignoreListenerVolume", input.ignoreListenerVolume );
