@@ -1,3 +1,6 @@
+# Notice
+This project is unmaintained, but feel free to fork it.
+
 ![](https://raw.githubusercontent.com/mrzapp/opened/master/Images/logo.png)
 
 ### What?
